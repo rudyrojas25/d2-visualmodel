@@ -16,6 +16,8 @@ app.append(heading, canvas, message);
 const ctx = canvas.getContext("2d")!;
 const cursor = { active: false, x: 0, y: 0 };
 
+let lineStarted = false;
+
 interface Point {
   x: number;
   y: number;
@@ -118,28 +120,28 @@ for (const emoji of stickers) {
 
 canvas.addEventListener("mousedown", (e) => {
   cursor.active = true;
-  cursor.x = e.offsetX;
-  cursor.y = e.offsetY;
 
-  redoStack.splice(0, redoStack.length);
-
-  if (currentTool === "marker") {
-    currentLine = new LineCommand(
-      currentColor,
-      currentThickness,
-      e.offsetX,
-      e.offsetY,
-    );
-    commands.push(currentLine);
-  } else {
+  if (currentTool === "sticker") {
+    redoStack.splice(0, redoStack.length);
     commands.push(new StickerCommand(e.offsetX, e.offsetY, currentSticker));
+    redraw();
   }
-
-  redraw();
 });
 
 canvas.addEventListener("mousemove", (e) => {
   if (cursor.active) {
+    if ((currentTool === "marker") && (!lineStarted)) { //was prev in mousedown
+      redoStack.splice(0, redoStack.length);
+      currentLine = new LineCommand(
+        currentColor,
+        currentThickness,
+        e.offsetX,
+        e.offsetY,
+      );
+      commands.push(currentLine);
+      lineStarted = true;
+    }
+
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
     currentLine?.points.push({ x: e.offsetX, y: e.offsetY });
@@ -151,6 +153,7 @@ canvas.addEventListener("mouseup", () => {
   cursor.active = false;
   currentLine = null;
   redraw();
+  lineStarted = false;
 });
 
 const controlsDiv = document.createElement("div");
