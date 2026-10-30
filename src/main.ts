@@ -3,15 +3,25 @@ const app = document.querySelector<HTMLElement>("#app")!;
 const heading = document.createElement("h1");
 heading.textContent = "D2 project";
 
+const squareDimension = 512;
+
 const canvas = document.createElement("canvas");
-canvas.width = 256;
-canvas.height = 256;
+canvas.width = squareDimension;
+canvas.height = squareDimension;
 canvas.style.border = "2px solid #000000";
 
-const message = document.createElement("p");
-message.textContent = "Your project starts here.";
+const invCanvas = document.createElement("canvas");
+invCanvas.width = squareDimension * 1.5;
+invCanvas.height = squareDimension * 1.5;
+invCanvas.style.border = "2px solid #000000";
 
-app.append(heading, canvas, message);
+//const message = document.createElement("p");
+//message.textContent = "Your project starts here.";
+const exportUI = document.createElement("button");
+exportUI.innerHTML = "Export";
+const otherCtx = invCanvas.getContext("2d")!;
+
+app.append(heading, canvas);
 
 const ctx = canvas.getContext("2d")!;
 const cursor = { active: false, x: 0, y: 0 };
@@ -188,4 +198,29 @@ controlsDiv.append(clearButton);
 clearButton.addEventListener("click", () => {
   commands.splice(0, commands.length);
   redraw();
+});
+
+document.body.append(exportUI);
+exportUI.addEventListener("click", () => {
+  console.log("export!");
+
+  otherCtx.clearRect(0, 0, invCanvas.width, invCanvas.height);
+  for (const cmd of commands) {
+    cmd.draw(otherCtx);
+  }
+
+  invCanvas.toBlob((blob) => {
+    const savedImg = document.createElement("img");
+    const url = URL.createObjectURL(blob!);
+
+    savedImg.src = url;
+
+    const download = document.createElement("a"); //source https://medium.com/@rohitkuwar/understanding-blob-in-javascript-a-practical-guide-for-frontend-developers-9fcd131a50f4
+    download.href = url;
+    download.innerText = "download";
+    document.body.appendChild(download);
+
+    download.click();
+    document.body.removeChild(download);
+  });
 });
