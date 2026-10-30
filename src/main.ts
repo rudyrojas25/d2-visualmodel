@@ -1,9 +1,26 @@
+import { createPublicKey } from "node:crypto";
+
 const app = document.querySelector<HTMLElement>("#app")!;
+
+const commands: Command[] = [];
+const redoStack: Command[] = [];
+let currentLine: LineCommand | null = null;
+let lineStarted = false;
+
+let currentTool: "marker" | "sticker" = "marker";
+let currentThickness = 2;
+let currentSticker = "😃";
+let currentColor = "#000000";
+
+const thinSize = 2;
+const medSize = 4;
+const thickSize = 6;
+const squareDimension = 512;
+
+document.body.style.backgroundColor = "#c9c9c9";
 
 const heading = document.createElement("h1");
 heading.textContent = "D2 project";
-
-const squareDimension = 512;
 
 const canvas = document.createElement("canvas");
 canvas.width = squareDimension;
@@ -13,20 +30,92 @@ canvas.style.border = "2px solid #000000";
 const invCanvas = document.createElement("canvas");
 invCanvas.width = squareDimension * 1.5;
 invCanvas.height = squareDimension * 1.5;
-invCanvas.style.border = "2px solid #000000";
-
-//const message = document.createElement("p");
-//message.textContent = "Your project starts here.";
-const exportUI = document.createElement("button");
-exportUI.innerHTML = "Export";
-const otherCtx = invCanvas.getContext("2d")!;
 
 app.append(heading, canvas);
 
+const toolsDiv = document.createElement("div");
+toolsDiv.style.marginBottom = "10px";
+app.append(toolsDiv);
+
+interface tool {
+  name: string;
+  type: "marker" | "sticker";
+  size: number;
+}
+
+const toolList: tool[] = [
+  {
+    name: "thin marker",
+    type: "marker",
+    size: thinSize,
+  },
+  {
+    name: "medium marker",
+    type: "marker",
+    size: medSize,
+  },
+  {
+    name: "thick marker",
+    type: "marker",
+    size: thickSize,
+  },
+];
+
+for (const tool of toolList) {
+  const btn = document.createElement("button");
+  btn.innerHTML = tool.name;
+  btn.onclick = () => {
+    currentTool = tool.type;
+    currentThickness = tool.size;
+  };
+  toolsDiv.append(btn);
+}
+
+const colorPicker = document.createElement("input");
+colorPicker.type = "color";
+colorPicker.value = currentColor;
+toolsDiv.append(colorPicker);
+
+const stickers = ["😃", "🔥", "👍", "hi"];
+for (const emoji of stickers) {
+  const btn = document.createElement("button");
+  btn.innerHTML = emoji;
+  btn.onclick = () => {
+    currentTool = "sticker";
+    currentSticker = emoji;
+  };
+  toolsDiv.append(btn);
+}
+
+//controls
+
+const controlsDiv = document.createElement("div");
+app.append(controlsDiv);
+
+const undoButton = document.createElement("button");
+undoButton.innerHTML = "undo";
+controlsDiv.append(undoButton);
+
+const redoButton = document.createElement("button");
+redoButton.innerHTML = "redo";
+controlsDiv.append(redoButton);
+
+const clearButton = document.createElement("button");
+clearButton.innerHTML = "clear";
+controlsDiv.append(clearButton);
+
+const exportButton = document.createElement("button");
+exportButton.innerHTML = "Export";
+exportButton.style.marginTop = "10px";
+
+const otherCtx = invCanvas.getContext("2d")!;
+otherCtx.fillStyle = "#ffffff";
+document.body.append(exportButton);
+
 const ctx = canvas.getContext("2d")!;
 const cursor = { active: false, x: 0, y: 0 };
-
-let lineStarted = false;
+ctx.fillStyle = "#ffffff";
+ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 interface Point {
   x: number;
@@ -70,71 +159,22 @@ class StickerCommand implements Command {
     ctx.font = "32px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.fillStyle = "#000000";
     ctx.fillText(this.emoji, this.x, this.y);
   }
 }
 
-const commands: Command[] = [];
-const redoStack: Command[] = [];
-let currentLine: LineCommand | null = null;
-let currentTool: "marker" | "sticker" = "marker";
-let currentThickness = 2;
-let currentSticker = "😃";
-let currentColor = "#000000";
-
-function redraw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (const cmd of commands) {
-    cmd.draw(ctx);
-  }
-}
-
-const toolsDiv = document.createElement("div");
-toolsDiv.style.marginBottom = "10px";
-app.append(toolsDiv);
-
-const thinButton = document.createElement("button");
-thinButton.innerHTML = "thin marker";
-thinButton.onclick = () => {
-  currentTool = "marker";
-  currentThickness = 2;
-};
-toolsDiv.append(thinButton);
-
-const thickButton = document.createElement("button");
-thickButton.innerHTML = "thick marker";
-thickButton.onclick = () => {
-  currentTool = "marker";
-  currentThickness = 6;
-};
-toolsDiv.append(thickButton);
-
-const colorPicker = document.createElement("input");
-colorPicker.type = "color";
-colorPicker.value = currentColor;
 colorPicker.oninput = (e) => {
   currentColor = (e.target as HTMLInputElement).value;
 };
-toolsDiv.append(colorPicker);
 
-const stickers = ["😃", "🔥", "👍"];
-for (const emoji of stickers) {
-  const btn = document.createElement("button");
-  btn.innerHTML = emoji;
-  btn.onclick = () => {
-    currentTool = "sticker";
-    currentSticker = emoji;
-  };
-  toolsDiv.append(btn);
-}
-
-canvas.addEventListener("mousedown", (e) => {
+canvas.addEventListener("mousedown", (e) => { //mousedown mousemove mouseup
   cursor.active = true;
 
   if (currentTool === "sticker") {
     redoStack.splice(0, redoStack.length);
     commands.push(new StickerCommand(e.offsetX, e.offsetY, currentSticker));
-    redraw();
+    redraw(ctx, canvas);
   }
 });
 
@@ -155,72 +195,60 @@ canvas.addEventListener("mousemove", (e) => {
     cursor.x = e.offsetX;
     cursor.y = e.offsetY;
     currentLine?.points.push({ x: e.offsetX, y: e.offsetY });
-    redraw();
+    redraw(ctx, canvas);
   }
 });
 
 canvas.addEventListener("mouseup", () => {
   cursor.active = false;
   currentLine = null;
-  redraw();
+  redraw(ctx, canvas);
   lineStarted = false;
 });
-
-const controlsDiv = document.createElement("div");
-app.append(controlsDiv);
-
-const undoButton = document.createElement("button");
-undoButton.innerHTML = "undo";
-controlsDiv.append(undoButton);
 
 undoButton.addEventListener("click", () => {
   if (commands.length > 0) {
     redoStack.push(commands.pop()!);
-    redraw();
+    redraw(ctx, canvas);
   }
 });
-
-const redoButton = document.createElement("button");
-redoButton.innerHTML = "redo";
-controlsDiv.append(redoButton);
 
 redoButton.addEventListener("click", () => {
   if (redoStack.length > 0) {
     commands.push(redoStack.pop()!);
-    redraw();
+    redraw(ctx, canvas);
   }
 });
-
-const clearButton = document.createElement("button");
-clearButton.innerHTML = "clear";
-controlsDiv.append(clearButton);
 
 clearButton.addEventListener("click", () => {
   commands.splice(0, commands.length);
-  redraw();
+  console.log(redoStack);
+  redraw(ctx, canvas);
 });
 
-document.body.append(exportUI);
-exportUI.addEventListener("click", () => {
-  console.log("export!");
-
-  otherCtx.clearRect(0, 0, invCanvas.width, invCanvas.height);
-  for (const cmd of commands) {
-    cmd.draw(otherCtx);
-  }
+exportButton.addEventListener("click", () => {
+  redraw(otherCtx, invCanvas);
 
   invCanvas.toBlob((blob) => {
-    const savedImg = document.createElement("img");
     const url = URL.createObjectURL(blob!);
-
-    savedImg.src = url;
-
     const download = document.createElement("a"); //source https://medium.com/@rohitkuwar/understanding-blob-in-javascript-a-practical-guide-for-frontend-developers-9fcd131a50f4
     download.href = url;
     download.innerText = "download";
     document.body.appendChild(download);
-
     download.click();
     document.body.removeChild(download);
   });
 });
+
+function redraw(context: CanvasRenderingContext2D, canv: HTMLCanvasElement) {
+  context.clearRect(0, 0, canv.width, canv.height);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canv.width, canv.height);
+  for (const cmd of commands) {
+    cmd.draw(context);
+  }
+}
+
+//function append tools
+
+//function append controls
