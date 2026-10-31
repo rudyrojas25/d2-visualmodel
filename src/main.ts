@@ -93,6 +93,7 @@ class StickerCommand implements Command {
   }
 }
 
+//html elements
 document.body.style.backgroundColor = "#c9c9c9";
 
 const heading = document.createElement("h1");
@@ -139,7 +140,7 @@ for (const emoji of stickers) {
   toolsDiv.append(btn);
 }
 
-//controls
+//html control elements
 const controlsDiv = document.createElement("div");
 app.append(controlsDiv);
 
@@ -158,15 +159,17 @@ controlsDiv.append(clearButton);
 const exportButton = document.createElement("button");
 exportButton.innerHTML = "Export";
 exportButton.style.marginTop = "10px";
+document.body.append(exportButton);
 
+//canvas contexts
 const ctx = canvas.getContext("2d")!;
 ctx.fillStyle = "#ffffff";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 const otherCtx = invCanvas.getContext("2d")!;
 otherCtx.fillStyle = "#ffffff";
-document.body.append(exportButton);
 
+//button logic
 colorPicker.oninput = (e) => {
   currentColor = (e.target as HTMLInputElement).value;
 };
