@@ -1,5 +1,3 @@
-import { createPublicKey } from "node:crypto";
-
 const app = document.querySelector<HTMLElement>("#app")!;
 
 const commands: Command[] = [];
