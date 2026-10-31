@@ -1,6 +1,12 @@
-# D2 starter
+d2-visualmodel
 
-A minimal TypeScript/Vite browser project with Deno checks and GitHub Pages deployment.
+deno required to edit and run project simultaneously. Use terminal command deno task dev.
+
+This is a simple painting application. Select different tools and drag your cursor over the canvas to get started.
+
+Undo, redo, clear, and export are available. Export will direct you to your painting as a web page. To download your painting, right click the painting as a web page and select the option to "save image as..."
+
+To add different sized brushes, add to the toolList array while following the interface format. To add new stickers, add a string to the stickers array.
 
 ## Credits
 
